@@ -21,8 +21,8 @@ pub struct Engine {
 impl Engine {
     pub fn init() -> Self {
         let mut engine = Engine::new();
-        engine.rand_insert().expect("Initialize Failed");
-        engine.rand_insert().expect("Initialize Failed");
+        engine.rand_insert();
+        engine.rand_insert();
         engine
     }
     pub fn go(&mut self, d: Direction) {
