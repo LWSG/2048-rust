@@ -14,7 +14,8 @@ pub enum EngineError {
     NoFreeGrid,
 }
 pub struct Engine {
-    game_data: Vec<Vec<u32>>,
+    //TODO Better Display
+    pub game_data: Vec<Vec<u32>>,
     free_grid: Vec<usize>,
 }
 impl Engine {
@@ -24,24 +25,15 @@ impl Engine {
         engine.rand_insert().expect("Initialize Failed");
         engine
     }
-    pub fn go(&mut self, d: Direction) -> EngineStatus {
-        match d {
-            Direction::Up => {
-                self.go_updown(true);
-            }
-            Direction::Down => {
-                self.go_updown(false);
-            }
-            Direction::Left => {
-                self.go_leftright(true);
-            }
-            Direction::Right => {
-                self.go_leftright(false);
-            }
-        }
-        match self.rand_insert() {
-            Ok(_) => EngineStatus::Ok,
-            Err(_) => EngineStatus::Failed,
+    pub fn go(&mut self, d: Direction) {
+        let change = match d {
+            Direction::Up => self.go_updown(true),
+            Direction::Down => self.go_updown(false),
+            Direction::Left => self.go_leftright(true),
+            Direction::Right => self.go_leftright(false),
+        };
+        if change {
+            self.rand_insert();
         }
     }
     pub fn score(&self) -> u32 {
@@ -52,6 +44,30 @@ impl Engine {
             }
         }
         sum
+    }
+    pub fn is_failed(&self) -> bool {
+        for i in &self.game_data {
+            for j in i {
+                if *j == 0 {
+                    return false;
+                }
+            }
+        }
+        for i in 0..4 {
+            for j in 0..3 {
+                if self.game_data[i][j] == self.game_data[i][j + 1] {
+                    return false;
+                }
+            }
+        }
+        for j in 0..4 {
+            for i in 0..3 {
+                if self.game_data[i][j] == self.game_data[i + 1][j] {
+                    return false;
+                }
+            }
+        }
+        true
     }
 
     fn new() -> Self {
@@ -77,9 +93,9 @@ impl Engine {
             free_grid,
         }
     }
-    fn rand_insert(&mut self) -> Result<(), EngineError> {
+    fn rand_insert(&mut self) {
         if self.free_grid.is_empty() {
-            Err(EngineError::NoFreeGrid)
+            return;
         } else {
             let mut rng = rand::thread_rng();
             let new_element: u32 = if rng.gen() { 2 } else { 4 };
@@ -87,71 +103,83 @@ impl Engine {
                 .free_grid
                 .remove(rng.gen_range(0..self.free_grid.len()));
             self.game_data[position / 4][position % 4] = new_element;
-            Ok(())
         }
     }
-    fn go_updown(&mut self, u: bool) {
-        for j in 0..4 {
-            for i in 0..3 {
-                if self.game_data[uod(i, u)][j] == self.game_data[uod(i + 1, u)][j] {
-                    self.game_data[uod(i, u)][j] *= 2;
-                    self.game_data[uod(i + 1, u)][j] = 0;
-                }
-            }
-        }
-
+    fn go_updown(&mut self, u: bool) -> bool {
         let mut free_grid = Vec::new();
+        let mut change = false;
         for j in 0..4 {
-            let mut ufree = 0;
+            let mut slice = Vec::new();
+            let mut compressed = false;
             for i in 0..4 {
                 if self.game_data[uod(i, u)][j] != 0 {
-                    self.game_data[uod(ufree, u)][j] = self.game_data[uod(i, u)][j];
-                    ufree += 1;
+                    if !compressed
+                        && slice.len() != 0
+                        && slice.ends_with(&[self.game_data[uod(i, u)][j]])
+                    {
+                        let x = slice.pop().unwrap();
+                        slice.push(x * 2);
+                        compressed = true;
+                    } else {
+                        compressed = false;
+                        slice.push(self.game_data[uod(i, u)][j]);
+                    }
                 }
             }
-            for i in ufree..4 {
+            for i in 0..slice.len() {
+                if !change && self.game_data[uod(i, u)][j] != slice[i] {
+                    change = true;
+                }
+                self.game_data[uod(i, u)][j] = slice[i];
+            }
+            for i in slice.len()..4 {
+                if !change && self.game_data[uod(i, u)][j] != 0 {
+                    change = true;
+                }
                 self.game_data[uod(i, u)][j] = 0;
-                free_grid.push(i * 4 + j);
+                free_grid.push(uod(i, u) * 4 + j);
             }
         }
         self.free_grid = free_grid;
+        change
     }
-    fn go_leftright(&mut self, u: bool) {
-        for i in 0..4 {
-            for j in 0..3 {
-                if self.game_data[i][uod(j, u)] == self.game_data[i][uod(j + 1, u)] {
-                    self.game_data[i][uod(j, u)] *= 2;
-                    self.game_data[i][uod(j + 1, u)] = 0;
-                }
-            }
-        }
-
+    fn go_leftright(&mut self, u: bool) -> bool {
+        let mut change = false;
         let mut free_grid = Vec::new();
         for i in 0..4 {
-            let mut ufree = 0;
+            let mut slice = Vec::new();
+            let mut compressed = false;
             for j in 0..4 {
                 if self.game_data[i][uod(j, u)] != 0 {
-                    self.game_data[i][uod(ufree, u)] = self.game_data[i][uod(j, u)];
-                    ufree += 1;
+                    if !compressed
+                        && slice.len() != 0
+                        && slice.ends_with(&[self.game_data[i][uod(j, u)]])
+                    {
+                        let x = slice.pop().unwrap();
+                        slice.push(x * 2);
+                        compressed = true;
+                    } else {
+                        compressed = false;
+                        slice.push(self.game_data[i][uod(j, u)]);
+                    }
                 }
             }
-            for j in ufree..4 {
+            for j in 0..slice.len() {
+                if !change && self.game_data[i][uod(j, u)] != slice[j] {
+                    change = true;
+                }
+                self.game_data[i][uod(j, u)] = slice[j];
+            }
+            for j in slice.len()..4 {
+                if !change && self.game_data[i][uod(j, u)] != 0 {
+                    change = true;
+                }
                 self.game_data[i][uod(j, u)] = 0;
-                free_grid.push(i * 4 + j);
+                free_grid.push(i * 4 + uod(j, u));
             }
         }
         self.free_grid = free_grid;
-    }
-    fn update_free_grid(&mut self) {
-        let mut free_grid = Vec::new();
-        for i in 0..4 {
-            for j in 0..4 {
-                if self.game_data[i][j] == 0 {
-                    free_grid.push(i * 4 + j);
-                }
-            }
-        }
-        self.free_grid = free_grid;
+        change
     }
 }
 fn uod(i: usize, u: bool) -> usize {
