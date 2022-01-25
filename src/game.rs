@@ -1,23 +1,19 @@
 use rand::Rng;
+
 pub enum Direction {
     Up,
     Down,
     Left,
     Right,
 }
-pub enum EngineStatus {
-    Ok,
-    Failed,
-}
+
 #[derive(Debug)]
-pub enum EngineError {
-    NoFreeGrid,
-}
 pub struct Engine {
     //TODO Better Display
     pub game_data: Vec<Vec<u32>>,
     free_grid: Vec<usize>,
 }
+
 impl Engine {
     pub fn init() -> Self {
         let mut engine = Engine::new();
@@ -98,13 +94,14 @@ impl Engine {
             return;
         } else {
             let mut rng = rand::thread_rng();
-            let new_element: u32 = if rng.gen() { 2 } else { 4 };
+            let new_element: u32 = if rng.gen_range(0..10) < 8 { 2 } else { 4 };
             let position = self
                 .free_grid
                 .remove(rng.gen_range(0..self.free_grid.len()));
             self.game_data[position / 4][position % 4] = new_element;
         }
     }
+    //TODO go_updown and go_leftright may be merged into one function
     fn go_updown(&mut self, u: bool) -> bool {
         let mut free_grid = Vec::new();
         let mut change = false;
@@ -182,6 +179,7 @@ impl Engine {
         change
     }
 }
+
 fn uod(i: usize, u: bool) -> usize {
     if u {
         i
@@ -193,6 +191,7 @@ fn uod(i: usize, u: bool) -> usize {
 #[cfg(test)]
 mod test {
     use super::Engine;
+
     #[test]
     fn go() {
         let mut eng = Engine::from(&vec![2, 0, 0, 1, 2, 1, 4, 8, 4]);
@@ -204,11 +203,6 @@ mod test {
                 vec![vec![4, 1, 4, 1], vec![4, 0, 0, 8], vec![0; 4], vec![0; 4]]
             )
         );
-        eng.update_free_grid();
-        assert_eq!(
-            format!("{:?}", eng.free_grid),
-            format!("{:?}", vec![5, 6, 8, 9, 10, 11, 12, 13, 14, 15])
-        );
         eng.go_updown(false);
         assert_eq!(
             format!("{:?}", eng.game_data),
@@ -216,11 +210,6 @@ mod test {
                 "{:?}",
                 vec![vec![0; 4], vec![0; 4], vec![0, 0, 0, 1], vec![8, 1, 4, 8]]
             )
-        );
-        eng.update_free_grid();
-        assert_eq!(
-            format!("{:?}", eng.free_grid),
-            format!("{:?}", vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
         );
         let mut eng = Engine::from(&vec![2, 2, 0, 4, 2, 0, 0, 8, 4]);
         eng.go_leftright(true);
@@ -232,14 +221,9 @@ mod test {
                     vec![4, 4, 0, 0],
                     vec![2, 8, 0, 0],
                     vec![4, 0, 0, 0],
-                    vec![0; 4]
+                    vec![0; 4],
                 ]
             )
-        );
-        eng.update_free_grid();
-        assert_eq!(
-            format!("{:?}", eng.free_grid),
-            format!("{:?}", vec![2, 3, 6, 7, 9, 10, 11, 12, 13, 14, 15])
         );
         eng.go_leftright(false);
         assert_eq!(
@@ -250,14 +234,9 @@ mod test {
                     vec![0, 0, 0, 8],
                     vec![0, 0, 2, 8],
                     vec![0, 0, 0, 4],
-                    vec![0; 4]
+                    vec![0; 4],
                 ]
             )
-        );
-        eng.update_free_grid();
-        assert_eq!(
-            format!("{:?}", eng.free_grid),
-            format!("{:?}", vec![0, 1, 2, 4, 5, 8, 9, 10, 12, 13, 14, 15])
         );
     }
 }
